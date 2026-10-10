@@ -1,5 +1,4 @@
-require('dotenv').config();
-const { Client, GatewayIntentBits, EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, RoleSelectMenuBuilder, ChannelType, PermissionsBitField, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { Client, GatewayIntentBits, EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, RoleSelectMenuBuilder, ChannelType, PermissionsBitField, ButtonBuilder, ButtonStyle, SlashCommandBuilder, REST, Routes } = require('discord.js');
 
 const client = new Client({
     intents: [
@@ -25,9 +24,50 @@ const badWords = [
     "sik kafalı", "orospu çocuğu", "amına koyim", "amk ya", "aq ya"
 ];
 
-client.once('ready', () => {
+const commands = [
+    new SlashCommandBuilder().setName('yardim').setDescription('Tüm bot komutlarını ve yardım menüsünü gösterir.'),
+    new SlashCommandBuilder().setName('ping').setDescription('Botun gecikme sürelerini gösterir.'),
+    new SlashCommandBuilder().setName('sunucu-bilgi').setDescription('Bulunduğunuz sunucu hakkında detaylı bilgi verir.'),
+    new SlashCommandBuilder().setName('kullanici-bilgi').setDescription('Kendi profiliniz veya etiketlenen kişi hakkında bilgi verir.').addUserOption(o => o.setName('kullanici').setDescription('Bilgisi bakılacak kişi').setRequired(false)),
+    new SlashCommandBuilder().setName('avatar').setDescription('Profil veya etiketlenen kişinin avatarını gösterir.').addUserOption(o => o.setName('kullanici').setDescription('Avatarı alınacak kişi').setRequired(false)),
+    new SlashCommandBuilder().setName('istatistik').setDescription('Botun genel istatistiklerini ve sistem durumunu gösterir.'),
+    new SlashCommandBuilder().setName('ayar').setDescription('Sunucu yönetim panelini açar (Yönetici).'),
+    new SlashCommandBuilder().setName('ban').setDescription('Belirtilen kullanıcıyı sunucudan yasaklar.').addUserOption(o => o.setName('kullanici').setDescription('Yasaklanacak kişi').setRequired(true)).addStringOption(o => o.setName('sebep').setDescription('Yasaklama sebebi').setRequired(false)),
+    new SlashCommandBuilder().setName('kick').setDescription('Belirtilen kullanıcıyı sunucudan atar.').addUserOption(o => o.setName('kullanici').setDescription('Atılacak kişi').setRequired(true)).addStringOption(o => o.setName('sebep').setDescription('Atılma sebebi').setRequired(false)),
+    new SlashCommandBuilder().setName('timeout').setDescription('Kullanıcıya zaman aşımı (mute) uygular.').addUserOption(o => o.setName('kullanici').setDescription('Susturulacak kişi').setRequired(true)).addIntegerOption(o => o.setName('sure').setDescription('Dakika cinsinden süre').setRequired(true)),
+    new SlashCommandBuilder().setName('temizle').setDescription('Belirtilen miktarda mesajı siler (1-100).').addIntegerOption(o => o.setName('sayi').setDescription('Silinecek mesaj sayısı').setRequired(true)),
+    new SlashCommandBuilder().setName('duyuru').setDescription('Özel bir duyuru embedi hazırlar ve gönderir.').addStringOption(o => o.setName('mesaj').setDescription('Duyuru metni').setRequired(true)),
+    new SlashCommandBuilder().setName('yavas-mod').setDescription('Kanalda yavaş mod (slowmode) süresini ayarlar.').addIntegerOption(o => o.setName('sure').setDescription('Saniye cinsinden süre (0 kapatır)').setRequired(true)),
+    new SlashCommandBuilder().setName('kanal-kilitle').setDescription('Bulunduğunuz kanalı mesaj gönderimine kapatır.'),
+    new SlashCommandBuilder().setName('kanal-ac').setDescription('Kilitli olan kanalı tekrar mesaj gönderimine açar.'),
+    new SlashCommandBuilder().setName('rol-ver').setDescription('Bir kullanıcıya belirtilen rolü verir.').addUserOption(o => o.setName('kullanici').setDescription('Hedef kullanıcı').setRequired(true)).addRoleOption(o => o.setName('rol').setDescription('Verilecek rol').setRequired(true)),
+    new SlashCommandBuilder().setName('rol-al').setDescription('Bir kullanıcıdan belirtilen rolü alır.').addUserOption(o => o.setName('kullanici').setDescription('Hedef kullanıcı').setRequired(true)).addRoleOption(o => o.setName('rol').setDescription('Alınacak rol').setRequired(true)),
+    new SlashCommandBuilder().setName('ticket-kur').setDescription('Destek bilet panelini kanala gönderir.'),
+    new SlashCommandBuilder().setName('çekiliş').setDescription('Hızlı bir çekiliş başlatır.').addStringOption(o => o.setName('odul').setDescription('Çekiliş ödülü').setRequired(true)),
+    new SlashCommandBuilder().setName('zar-at').setDescription('1 ile 6 arasında rastgele bir zar atar.'),
+    new SlashCommandBuilder().setName('yazi-tura').setDescription('Yazı mı tura mı atar.'),
+    new SlashCommandBuilder().setName('espri').setDescription('Rastgele eğlenceli bir espri patlatır.'),
+    new SlashCommandBuilder().setName('anket').setDescription('Sunucuda hızlı bir oylama anketi açar.').addStringOption(o => o.setName('soru').setDescription('Anket sorusu').setRequired(true)),
+    new SlashCommandBuilder().setName('bot-bilgi').setDescription('Botun geliştiricisi ve altyapısı hakkında bilgi verir.'),
+    new SlashCommandBuilder().setName('rol-bilgi').setDescription('Sunucudaki bir rol hakkında detaylı bilgi verir.').addRoleOption(o => o.setName('rol').setDescription('Bilgisi alınacak rol').setRequired(true)),
+    new SlashCommandBuilder().setName('emoji-ekle').setDescription('Sunucuya bağlantıdan emoji ekler.').addStringOption(o => o.setName('link').setDescription('Emoji görsel bağlantısı').setRequired(true)).addStringOption(o => o.setName('isim').setDescription('Emoji adı').setRequired(true)),
+    new SlashCommandBuilder().setName('afk').setDescription('AFK moduna geçmenizi sağlar.').addStringOption(o => o.setName('sebep').setDescription('AFK sebebi').setRequired(false)),
+    new SlashCommandBuilder().setName('hatirlatici').setDescription('Belirli bir süre sonra size hatırlatma yapar.').addIntegerOption(o => o.setName('dakika').setDescription('Kaç dakika sonra').setRequired(true)).addStringOption(o => o.setName('mesaj').setDescription('Hatırlatma içeriği').setRequired(true)),
+    new SlashCommandBuilder().setName('sunucu-ikon').setDescription('Sunucunun büyük ikon fotoğrafını gösterir.'),
+    new SlashCommandBuilder().setName('istatistikler').setDescription('Detaylı bellek ve CPU kullanım durumunu gösterir.')
+].map(c => c.toJSON());
+
+client.once('ready', async () => {
     console.log(`[+] ${client.user.tag} aktif ve kullanıma hazır!`);
-    client.user.setPresence({ activities: [{ name: 's.ayar | /ayar' }], status: 'online' });
+    client.user.setPresence({ activities: [{ name: 's.ayar | /yardim' }], status: 'online' });
+
+    const rest = new REST({ version: '10' }).setToken("MTU1NzgxODg3Mzk2ODA2NjY3Mg.GCsze6.X7pXnqVDpdk6xEn2v4QhS6x4I6iJMUjsyjwEBQ");
+    try {
+        await rest.put(Routes.applicationCommands(client.user.id), { body: commands });
+        console.log('[+] Slash (/) komutları başarıyla yüklendi!');
+    } catch (error) {
+        console.error(error);
+    }
 });
 
 client.on('messageCreate', async message => {
@@ -67,31 +107,19 @@ client.on('messageCreate', async message => {
 
     if (command === 'ayar' || command === 'ayarlar') {
         if (!message.member.permissions.has(PermissionsBitField.Flags.Administrator)) return;
-
         const rolesText = settings.ticketRoles.length > 0 ? settings.ticketRoles.map(id => `<@&${id}>`).join(', ') : '`Seçilmedi`';
-
-        const embed = new EmbedBuilder()
-            .setColor('#2b2d31')
-            .setTitle('⚙️ Yönetim Paneli')
-            .addFields(
-                { name: '🎟️ Yetkili Rolleri', value: rolesText, inline: false }
-            );
-
+        const embed = new EmbedBuilder().setColor('#2b2d31').setTitle('⚙️ Yönetim Paneli').addFields({ name: '🎟️ Yetkili Rolleri', value: rolesText, inline: false });
         const row = new ActionRowBuilder().addComponents(
-            new StringSelectMenuBuilder()
-                .setCustomId('settings_menu')
-                .setPlaceholder('İşlem seçin...')
-                .addOptions([
-                    { label: 'Log Kanalları Kur', value: 'kur_log', emoji: '🛡️' },
-                    { label: 'Bilet Rolleri Seç', value: 'sec_ticket_rol', emoji: '🎟️' },
-                    { label: 'Destek Paneli Gönder', value: 'kur_ticket', emoji: '📫' }
-                ])
+            new StringSelectMenuBuilder().setCustomId('settings_menu').setPlaceholder('İşlem seçin...').addOptions([
+                { label: 'Log Kanalları Kur', value: 'kur_log', emoji: '🛡️' },
+                { label: 'Bilet Rolleri Seç', value: 'sec_ticket_rol', emoji: '🎟️' },
+                { label: 'Destek Paneli Gönder', value: 'kur_ticket', emoji: '📫' }
+            ])
         );
-
         return message.reply({ embeds: [embed], components: [row] });
     }
 
-    if (command === 'yardım') return message.reply("✨ `s.ayar` yazarak yönetim paneline ulaşabilirsiniz.");
+    if (command === 'yardım') return message.reply("✨ `s.ayar` yazarak veya `/yardim` komutunu kullanarak tüm detaylı komutlara ulaşabilirsiniz.");
     if (command === 'ping') return message.reply(`🏓 ${client.ws.ping}ms`);
     
     if (command === 'temizle' || command === 'sil') {
@@ -105,31 +133,45 @@ client.on('messageCreate', async message => {
 
 client.on('interactionCreate', async interaction => {
     if (interaction.isChatInputCommand()) {
-        if (interaction.commandName === 'yardim') return interaction.reply({ content: "✨ Komutlar aktif." });
-        if (interaction.commandName === 'ping') return interaction.reply({ content: `🏓 ${client.ws.ping}ms` });
-        if (interaction.commandName === 'sunucu-bilgi') return interaction.reply({ content: `📊 ${interaction.guild.name}` });
-        if (interaction.commandName === 'ayar') {
+        const { commandName } = interaction;
+
+        if (commandName === 'yardim') {
+            const embed = new EmbedBuilder()
+                .setColor('#5865F2')
+                .setTitle('📜 Komut Listesi ve Yardım')
+                .setDescription('Botumuzda bulunan tüm komutları hem `s.` önekiyle hem de `/` slash komutları olarak kullanabilirsiniz.')
+                .addFields(
+                    { name: '🛡️ Moderasyon', value: '`/ban`, `/kick`, `/timeout`, `/temizle`, `/yavas-mod`, `/kanal-kilitle`, `/kanal-ac`', inline: false },
+                    { name: '⚙️ Yönetim & Sistem', value: '`/ayar`, `/ticket-kur`, `/duyuru`, `/rol-ver`, `/rol-al`, `/anket`', inline: false },
+                    { name: '👤 Kullanıcı & Bilgi', value: '`/ping`, `/yardim`, `/sunucu-bilgi`, `/kullanici-bilgi`, `/avatar`, `/istatistik`', inline: false },
+                    { name: '🎉 Eğlence & Mini', value: '`/zar-at`, `/yazi-tura`, `/espri`, `/hatirlatici`, `/afk`', inline: false }
+                );
+            return interaction.reply({ embeds: [embed], ephemeral: true });
+        }
+
+        if (commandName === 'ping') return interaction.reply({ content: `🏓 Gecikme süresi: **${client.ws.ping}ms**`, ephemeral: true });
+        if (commandName === 'sunucu-bilgi') return interaction.reply({ content: `📊 Sunucu Adı: **${interaction.guild.name}**\n👥 Üye Sayısı: **${interaction.guild.memberCount}**`, ephemeral: true });
+        if (commandName === 'espri') {
+            const espriler = [
+                "Geçen gün takaksiye bindim, taksi kısa mesafe dedi inecek var dedim.",
+                "Denizde balıklar neden konuşamaz? Çünkü su kaçar.",
+                "Adamın biri kafede yatmış, o da tatlı uyku olmuş."
+            ];
+            return interaction.reply({ content: espriler[Math.floor(Math.random() * espriler.length)], ephemeral: true });
+        }
+        if (commandName === 'ayar') {
             if (!interaction.member.permissions.has(PermissionsBitField.Flags.Administrator)) return interaction.reply({ content: "Yetkiniz yok.", ephemeral: true });
             const guildId = interaction.guild.id;
             let settings = serverSettings.get(guildId) || { ticketRoles: [] };
             const rolesText = settings.ticketRoles.length > 0 ? settings.ticketRoles.map(id => `<@&${id}>`).join(', ') : '`Seçilmedi`';
 
-            const embed = new EmbedBuilder()
-                .setColor('#2b2d31')
-                .setTitle('⚙️ Yönetim Paneli')
-                .addFields(
-                    { name: '🎟️ Yetkili Rolleri', value: rolesText, inline: false }
-                );
-
+            const embed = new EmbedBuilder().setColor('#2b2d31').setTitle('⚙️ Yönetim Paneli').addFields({ name: '🎟️ Yetkili Rolleri', value: rolesText, inline: false });
             const row = new ActionRowBuilder().addComponents(
-                new StringSelectMenuBuilder()
-                    .setCustomId('settings_menu')
-                    .setPlaceholder('İşlem seçin...')
-                    .addOptions([
-                        { label: 'Log Kanalları Kur', value: 'kur_log', emoji: '🛡️' },
-                        { label: 'Bilet Rolleri Seç', value: 'sec_ticket_rol', emoji: '🎟️' },
-                        { label: 'Destek Paneli Gönder', value: 'kur_ticket', emoji: '📫' }
-                    ])
+                new StringSelectMenuBuilder().setCustomId('settings_menu').setPlaceholder('İşlem seçin...').addOptions([
+                    { label: 'Log Kanalları Kur', value: 'kur_log', emoji: '🛡️' },
+                    { label: 'Bilet Rolleri Seç', value: 'sec_ticket_rol', emoji: '🎟️' },
+                    { label: 'Destek Paneli Gönder', value: 'kur_ticket', emoji: '📫' }
+                ])
             );
             return interaction.reply({ embeds: [embed], components: [row], ephemeral: true });
         }
@@ -140,7 +182,6 @@ client.on('interactionCreate', async interaction => {
         let settings = serverSettings.get(guildId) || { ticketRoles: [] };
         settings.ticketRoles = interaction.values;
         serverSettings.set(guildId, settings);
-
         const rolesText = interaction.values.map(id => `<@&${id}>`).join(', ');
         return interaction.update({ content: `✅ Yetkili roller başarıyla güncellendi: ${rolesText}`, embeds: [], components: [] });
     }
@@ -169,19 +210,11 @@ client.on('interactionCreate', async interaction => {
 
             if (settings.ticketRoles && settings.ticketRoles.length > 0) {
                 for (const roleId of settings.ticketRoles) {
-                    overwrites.push({
-                        id: roleId,
-                        allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages]
-                    });
+                    overwrites.push({ id: roleId, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] });
                 }
             }
 
-            const channel = await interaction.guild.channels.create({
-                name: channelName,
-                type: ChannelType.GuildText,
-                permissionOverwrites: overwrites
-            });
-
+            const channel = await interaction.guild.channels.create({ name: channelName, type: ChannelType.GuildText, permissionOverwrites: overwrites });
             const rolesMention = settings.ticketRoles.length > 0 ? settings.ticketRoles.map(id => `<@&${id}>`).join(' ') : '';
             const embed = new EmbedBuilder().setColor('Green').setTitle('Destek Kanalı');
             const row = new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('close_ticket').setLabel('Kapat').setStyle(ButtonStyle.Danger));
@@ -215,11 +248,7 @@ client.on('interactionCreate', async interaction => {
 
         if (val === 'sec_ticket_rol') {
             const row = new ActionRowBuilder().addComponents(
-                new RoleSelectMenuBuilder()
-                    .setCustomId('role_select_ticket')
-                    .setPlaceholder('Rolleri seçin...')
-                    .setMinValues(1)
-                    .setMaxValues(5)
+                new RoleSelectMenuBuilder().setCustomId('role_select_ticket').setPlaceholder('Rolleri seçin...').setMinValues(1).setMaxValues(5)
             );
             return interaction.reply({ content: "👇 İstediğiniz kadar bilet rolü seçebilirsiniz:", components: [row], ephemeral: true });
         }
@@ -233,4 +262,4 @@ client.on('interactionCreate', async interaction => {
     }
 });
 
-client.login(process.env.TOKEN);
+client.login("MTU1NzgxODg3Mzk2ODA2NjY3Mg.GCsze6.X7pXnqVDpdk6xEn2v4QhS6x4I6iJMUjsyjwEBQ");
