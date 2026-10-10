@@ -61,12 +61,14 @@ client.once('ready', async () => {
     console.log(`[+] ${client.user.tag} aktif ve kullanıma hazır!`);
     client.user.setPresence({ activities: [{ name: 's.ayar | /yardim' }], status: 'online' });
 
-    const rest = new REST({ version: '10' }).setToken("MTU1NzgxODg3Mzk2ODA2NjY3Mg.GCsze6.X7pXnqVDpdk6xEn2v4QhS6x4I6iJMUjsyjwEBQ");
-    try {
-        await rest.put(Routes.applicationCommands(client.user.id), { body: commands });
-        console.log('[+] Slash (/) komutları başarıyla yüklendi!');
-    } catch (error) {
-        console.error(error);
+    if (process.env.TOKEN) {
+        const rest = new REST({ version: '10' }).setToken(process.env.TOKEN);
+        try {
+            await rest.put(Routes.applicationCommands(client.user.id), { body: commands });
+            console.log('[+] Slash (/) komutları başarıyla yüklendi!');
+        } catch (error) {
+            console.error(error);
+        }
     }
 });
 
@@ -214,7 +216,7 @@ client.on('interactionCreate', async interaction => {
                 }
             }
 
-            const channel = await interaction.guild.channels.create({ name: channelName, type: ChannelType.GuildText, permissionOverwrites: overwrites });
+            const channel = await interaction.guild.channels.create({ name: channelName, type: ChannelType.GuildType ? ChannelType.GuildText : 0, permissionOverwrites: overwrites });
             const rolesMention = settings.ticketRoles.length > 0 ? settings.ticketRoles.map(id => `<@&${id}>`).join(' ') : '';
             const embed = new EmbedBuilder().setColor('Green').setTitle('Destek Kanalı');
             const row = new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('close_ticket').setLabel('Kapat').setStyle(ButtonStyle.Danger));
@@ -262,4 +264,4 @@ client.on('interactionCreate', async interaction => {
     }
 });
 
-client.login("MTU1NzgxODg3Mzk2ODA2NjY3Mg.GCsze6.X7pXnqVDpdk6xEn2v4QhS6x4I6iJMUjsyjwEBQ");
+client.login(process.env.TOKEN);
